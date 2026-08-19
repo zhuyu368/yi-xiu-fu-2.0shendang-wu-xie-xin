@@ -2667,7 +2667,7 @@ input:checked + .slider:before {
 }
 
 .poke-message {
-    background: rgba(0, 0, 0, 0.05) !important;
+    background: rgba(0, 0, 0, 0.85) !important;
     color: #666 !important;
     font-size: 0.75rem !important;
     text-align: center;
@@ -3749,7 +3749,6 @@ input:checked + .slider:before {
     <button class="tab-button" data-tab="music">音乐播放</button>
     <!-- 新增拍一拍设置标签 -->
     <button class="tab-button" data-tab="poke">👋 拍一拍设置</button>
-    
     <button class="tab-button" data-tab="data">数据管理</button>
   </div>
   
@@ -4233,7 +4232,6 @@ input:checked + .slider:before {
       </div>
     </div>
     <!-- ===== 拍一拍设置模块结束 ===== -->
-    
     <!-- ===== 数据管理模块（已删除消息推送，已删除标题图标） ===== -->
     <div class="settings-section-card" id="section-data" data-tab="data">
       <div class="settings-section-header collapsed" onclick="toggleSection(&#39;data&#39;)">
@@ -4326,14 +4324,6 @@ class ChatDataManager {
         this.GROUP_SETTINGS_KEY = 'seven_and_wish_group_settings';
         // 新增拍一拍设置存储键
         this.POKE_SETTINGS_KEY = 'seven_and_wish_poke_settings';
-        // 新增信件相关存储键
-this.LETTER_CONTENT_KEY = 'seven_and_wish_letter_content';
-this.LETTER_REPLY_SCHEDULED_KEY = 'seven_and_wish_letter_reply_scheduled';
-this.LETTER_LAST_SEND_TIME_KEY = 'seven_and_wish_letter_last_send_time';
-this.LETTER_REPLIES_KEY = 'seven_and_wish_letter_replies';
-this.PENDING_LETTER_MAP_KEY = 'seven_and_wish_pending_letter_map';
-this.PENDING_LETTER_ID_KEY = 'seven_and_wish_pending_letter_id';
-        
         // 版本控制
         this.DATA_VERSION_KEY = 'seven_and_wish_data_version';
         this.DATA_VERSION = '2.0'; // 第二个文件的版本
@@ -4764,20 +4754,31 @@ getAllEnabledPhrases() {
     
     // ---- 发送设置 ----
     getSendSettings() {
-    const data = this.getStoredData(this.SEND_SETTINGS_KEY);
-    // 兼容旧版本数据：如果 maxReplyDelay 小于 60，说明是旧版秒数（且小于1分钟），需要转换
-    if (data && data.maxReplyDelay !== undefined && data.maxReplyDelay < 60) {
-        data.maxReplyDelay = data.maxReplyDelay * 60;  // 转换为秒
+        const data = this.getStoredData(this.SEND_SETTINGS_KEY);
+        if (data) {
+            // 强制修正：确保 maxReplyDelay 不超过 300 秒（5分钟上限）
+            if (data.maxReplyDelay === undefined || data.maxReplyDelay === null) {
+                data.maxReplyDelay = 300;
+            } else {
+                data.maxReplyDelay = Math.min(Math.max(parseFloat(data.maxReplyDelay) || 300, 1), 300);
+            }
+            // 确保 minReplyDelay 合法
+            if (data.minReplyDelay === undefined || data.minReplyDelay === null) {
+                data.minReplyDelay = 1.5;
+            } else {
+                data.minReplyDelay = Math.min(Math.max(parseFloat(data.minReplyDelay) || 1.5, 0.1), 10);
+            }
+            return data;
+        }
+        return {
+            stickerRatio: 50,
+            phraseRatio: 50,
+            maxMessageCount: 3,
+            autoSendFrequency: 600000,
+            minReplyDelay: 1.5,
+            maxReplyDelay: 300
+        };
     }
-    return data || {
-        stickerRatio: 50,
-        phraseRatio: 50,
-        maxMessageCount: 3,
-        autoSendFrequency: 600000,
-        minReplyDelay: 1.5,
-        maxReplyDelay: 300      // 5分钟 = 300秒
-    };
-}
     
     saveSendSettings(settings) {
         return this.setStoredData(this.SEND_SETTINGS_KEY, settings);
@@ -4915,51 +4916,6 @@ getAllEnabledPhrases() {
     savePokeSettings(settings) {
         return this.setStoredData(this.POKE_SETTINGS_KEY, settings);
     }
-    // ---- 信件数据 ----
-getLetterContent() {
-    return this.getStoredData(this.LETTER_CONTENT_KEY) || '';
-}
-
-saveLetterContent(content) {
-    return this.setStoredData(this.LETTER_CONTENT_KEY, content);
-}
-
-getLetterReplyScheduled() {
-    return this.getStoredData(this.LETTER_REPLY_SCHEDULED_KEY) || null;
-}
-
-saveLetterReplyScheduled(scheduledTime) {
-    return this.setStoredData(this.LETTER_REPLY_SCHEDULED_KEY, scheduledTime);
-}
-
-getLetterLastSendTime() {
-    return this.getStoredData(this.LETTER_LAST_SEND_TIME_KEY) || null;
-}
-
-saveLetterLastSendTime(time) {
-    return this.setStoredData(this.LETTER_LAST_SEND_TIME_KEY, time);
-}
-// ---- 回信记录 ----
-getLetterReplies() {
-    return this.getStoredData(this.LETTER_REPLIES_KEY) || [];
-}
-
-saveLetterReplies(replies) {
-    return this.setStoredData(this.LETTER_REPLIES_KEY, replies);
-}
-// ---- 信件映射存储方法 ----
-getPendingLetterMap() {
-    return this.getStoredData(this.PENDING_LETTER_MAP_KEY) || {};
-}
-savePendingLetterMap(map) {
-    return this.setStoredData(this.PENDING_LETTER_MAP_KEY, map);
-}
-getPendingLetterId() {
-    return this.getStoredData(this.PENDING_LETTER_ID_KEY) || null;
-}
-savePendingLetterId(id) {
-    return this.setStoredData(this.PENDING_LETTER_ID_KEY, id);
-}
     // ---- 恋爱天数 ----
     getLoveDays() {
         return this.getStoredData(this.LOVE_DAYS_KEY) || 1;
@@ -5042,16 +4998,6 @@ class ChatApp {
             // 新增拍一拍设置
             pokeSettings: null,
             pokeTimer: null,
-            // 新增信件数据
-            letterContent: '',
-            letterReplyScheduled: null,  
-            letterLastSendTime: null,     
-            letterReplyTimer: null,
-            pendingLetterContent: '',   // 当前待回复的信件内容
-            letterReplies: [],         
-            pendingLetterMap: {},
-            pendingLetterId: null,
-             // 回信记录列表
             // 运行时状态
             isTyping: false,
             waitingForReply: false,
@@ -5184,28 +5130,6 @@ this.appData.responsePhrases = this.dataManager.getAllEnabledPhrases();
         
         // 加载拍一拍设置
         this.appData.pokeSettings = this.dataManager.getPokeSettings();
-        // 加载信件数据
-this.appData.letterContent = this.dataManager.getLetterContent();
-this.appData.letterReplyScheduled = this.dataManager.getLetterReplyScheduled();
-this.appData.letterLastSendTime = this.dataManager.getLetterLastSendTime();
-this.appData.letterReplies = this.dataManager.getLetterReplies();
-this.appData.pendingLetterMap = this.dataManager.getPendingLetterMap ? this.dataManager.getPendingLetterMap() : {};
-this.appData.pendingLetterId = this.dataManager.getPendingLetterId ? this.dataManager.getPendingLetterId() : null;
-
-// ===== 新增：加载信件映射数据 =====
-this.appData.pendingLetterMap = this.dataManager.getPendingLetterMap ? this.dataManager.getPendingLetterMap() : {};
-this.appData.pendingLetterId = this.dataManager.getPendingLetterId ? this.dataManager.getPendingLetterId() : null;
-
-// 如果之前有未完成的定时回复，重新启动定时器
-if (this.appData.letterReplyScheduled) {
-    const timeRemaining = this.appData.letterReplyScheduled - Date.now();
-    if (timeRemaining > 0) {
-        this.scheduleLetterReply(timeRemaining);
-    } else {
-        // 时间已过，立即触发回复
-        this.triggerLetterReply();
-    }
-}
         
         // 加载已抽取塔罗牌记录（Set）
         this.appData.drawnCards = this.dataManager.getDrawnCards();
@@ -5297,25 +5221,6 @@ if (this.appData.letterReplyScheduled) {
         
         // 保存拍一拍设置
         this.dataManager.savePokeSettings(this.appData.pokeSettings);
-        // 保存信件数据
-this.dataManager.saveLetterContent(this.appData.letterContent);
-this.dataManager.saveLetterReplyScheduled(this.appData.letterReplyScheduled);
-this.dataManager.saveLetterLastSendTime(this.appData.letterLastSendTime);
-this.dataManager.saveLetterReplies(this.appData.letterReplies);
-if (this.dataManager.savePendingLetterMap) {
-    this.dataManager.savePendingLetterMap(this.appData.pendingLetterMap || {});
-}
-if (this.dataManager.savePendingLetterId) {
-    this.dataManager.savePendingLetterId(this.appData.pendingLetterId || null);
-}
-
-// ===== 新增：保存信件映射数据 =====
-if (this.dataManager.savePendingLetterMap) {
-    this.dataManager.savePendingLetterMap(this.appData.pendingLetterMap || {});
-}
-if (this.dataManager.savePendingLetterId) {
-    this.dataManager.savePendingLetterId(this.appData.pendingLetterId || null);
-}
         // 保存已抽取塔罗牌记录
         this.dataManager.saveDrawnCards(this.appData.drawnCards);
         
@@ -5452,7 +5357,6 @@ if (this.dataManager.savePendingLetterId) {
         this.initActiveCallSettingsUI();
         this.initMusicSettingsUI();
         this.renderPokeUI(); // 新增拍一拍UI
-        this.renderLetterUI(); // 新增写信收信UI
         this.updateStickerCount();
         this.updatePhraseCount();
         this.updateTarotPhraseCount();
@@ -6362,15 +6266,15 @@ if (minDelaySlider && this.appData.sendSettings) {
     minDelaySlider.value = this.appData.sendSettings.minReplyDelay || 1.5;
 }
 if (maxDelaySlider && this.appData.sendSettings) {
-    // 将存储的秒数转换为分钟显示给用户
-    const maxDelayInMinutes = (this.appData.sendSettings.maxReplyDelay || 300) / 60;
+    // 将存储的秒数转换为分钟显示，并强制不超过5分钟
+    const maxDelayInMinutes = Math.min((this.appData.sendSettings.maxReplyDelay || 300) / 60, 5);
     maxDelaySlider.value = maxDelayInMinutes;
 }
 if (minDelayValue && this.appData.sendSettings) {
     minDelayValue.textContent = `${(this.appData.sendSettings.minReplyDelay || 1.5).toFixed(1)}秒`;
 }
 if (maxDelayValue && this.appData.sendSettings) {
-    const maxDelayInMinutes = (this.appData.sendSettings.maxReplyDelay || 300) / 60;
+    const maxDelayInMinutes = Math.min((this.appData.sendSettings.maxReplyDelay || 300) / 60, 5);
     maxDelayValue.textContent = `${maxDelayInMinutes.toFixed(1)}分钟`;
 }
     }
@@ -8851,21 +8755,20 @@ if (minDelaySlider) {
     });
 }
 
-        // 新增：最长等待时间滑块（分钟转秒存储）
+        // 新增：最长等待时间滑块（分钟转秒存储，上限5分钟=300秒）
 const maxDelaySlider = document.getElementById('maxDelaySlider');
 if (maxDelaySlider) {
     maxDelaySlider.addEventListener('input', (e) => {
-        const valInMinutes = parseFloat(e.target.value);
-        const valInSeconds = valInMinutes * 60;  // 分钟转秒存储
+        const valInMinutes = Math.min(parseFloat(e.target.value), 5); // 强制上限5分钟
+        const valInSeconds = Math.min(valInMinutes * 60, 300);        // 强制上限300秒
         const display = document.getElementById('maxDelayValue');
         if (display) display.textContent = `${valInMinutes.toFixed(1)}分钟`;
         
         if (!this.appData.sendSettings) this.appData.sendSettings = {};
         this.appData.sendSettings.maxReplyDelay = valInSeconds;
         
-        // 获取当前最小值（秒）
-        const minDelaySec = this.appData.sendSettings.minReplyDelay || 1.5;
         // 如果最大值（秒）小于最小值（秒），自动同步最小值
+        const minDelaySec = this.appData.sendSettings.minReplyDelay || 1.5;
         if (minDelaySec > valInSeconds) {
             this.appData.sendSettings.minReplyDelay = valInSeconds;
             const minSlider = document.getElementById('minDelaySlider');
@@ -9005,63 +8908,6 @@ if (maxDelaySlider) {
         if (savePokeBtn) {
             savePokeBtn.addEventListener('click', () => this.savePokeSettings());
         }
-        // ===== 新增：写信收信标签切换 =====
-const letterTabWrite = document.getElementById('letterTabWrite');
-const letterTabInbox = document.getElementById('letterTabInbox');
-const letterWritePanel = document.getElementById('letterWritePanel');
-const letterInboxPanel = document.getElementById('letterInboxPanel');
-
-if (letterTabWrite && letterTabInbox && letterWritePanel && letterInboxPanel) {
-    letterTabWrite.addEventListener('click', () => {
-        letterWritePanel.style.display = 'block';
-        letterInboxPanel.style.display = 'none';
-        letterTabWrite.style.background = '#8a7f8d';
-        letterTabWrite.style.color = 'white';
-        letterTabInbox.style.background = 'rgba(138,127,141,0.15)';
-        letterTabInbox.style.color = '#8a7f8d';
-        this.updateLetterStatus();
-    });
-    
-    letterTabInbox.addEventListener('click', () => {
-        letterWritePanel.style.display = 'none';
-        letterInboxPanel.style.display = 'block';
-        letterTabInbox.style.background = '#8a7f8d';
-        letterTabInbox.style.color = 'white';
-        letterTabWrite.style.background = 'rgba(138,127,141,0.15)';
-        letterTabWrite.style.color = '#8a7f8d';
-        this.renderInboxList();
-    });
-}
-
-// ===== 新增：写信收信事件监听 =====
-
-// 信件内容输入变化
-const letterTextarea = document.getElementById('letterContentTextarea');
-if (letterTextarea) {
-    letterTextarea.addEventListener('input', () => {
-        this.appData.letterContent = letterTextarea.value;
-        this.updateLetterCharCount();
-        this.dataManager.saveLetterContent(letterTextarea.value);
-    });
-}
-
-// 发送信件按钮
-const sendLetterBtn = document.getElementById('sendLetterBtn');
-if (sendLetterBtn) {
-    sendLetterBtn.addEventListener('click', () => this.sendLetter());
-}
-
-// 清空信件按钮
-const clearLetterBtn = document.getElementById('clearLetterBtn');
-if (clearLetterBtn) {
-    clearLetterBtn.addEventListener('click', () => this.clearLetter());
-}
-
-// 定期更新信件状态（每分钟检查一次）
-setInterval(() => {
-    this.updateLetterStatus();
-}, 60000);
-
         const pokeFreqSlider = document.getElementById('pokeFrequencySlider');
         const pokeFreqValue = document.getElementById('pokeFrequencyValue');
         if (pokeFreqSlider && pokeFreqValue) {
@@ -9721,479 +9567,7 @@ const delay = minDelay + Math.random() * (maxDelay - minDelay);
     // 添加这一行调试日志
     console.log('拍一拍设置已保存:', this.appData.pokeSettings);
 }
-// ========================
-// 新增：写信收信功能
-// ========================
 
-/**
- * 渲染信件UI
- */
-renderLetterUI() {
-    const textarea = document.getElementById('letterContentTextarea');
-    if (textarea) {
-        textarea.value = this.appData.letterContent || '';
-        this.updateLetterCharCount();
-    }
-    
-    // 渲染收信箱列表
-    this.renderInboxList();
-    
-    // 更新状态显示
-    this.updateLetterStatus();
-}
-
-/**
- * 更新信件字数统计
- */
-updateLetterCharCount() {
-    const textarea = document.getElementById('letterContentTextarea');
-    const countSpan = document.getElementById('letterCharCount');
-    if (textarea && countSpan) {
-        countSpan.textContent = textarea.value.length;
-    }
-}
-
-/**
- * 更新信件状态显示
- */
-updateLetterStatus() {
-    const statusEl = document.getElementById('letterStatus');
-    if (!statusEl) return;
-    
-    if (this.appData.letterReplyScheduled) {
-        const remaining = this.appData.letterReplyScheduled - Date.now();
-        if (remaining > 0) {
-            const minutes = Math.ceil(remaining / 60000);
-            const hours = Math.floor(minutes / 60);
-            const mins = minutes % 60;
-            let timeStr = '';
-            if (hours > 0) {
-                timeStr = `${hours}小时${mins}分钟后`;
-            } else {
-                timeStr = `${mins}分钟后`;
-            }
-            statusEl.innerHTML = `<span style="color: #ff9800;">⏳ 信件已发送，对方预计在 ${timeStr} 回复</span>`;
-        } else {
-            statusEl.innerHTML = `<span style="color: #4caf50;">✅ 对方正在准备回复...</span>`;
-        }
-    } else if (this.appData.letterLastSendTime) {
-        const sendTime = new Date(this.appData.letterLastSendTime);
-        statusEl.innerHTML = `<span style="color: #4caf50;">📨 上次写信时间: ${sendTime.toLocaleString()}，对方已回复</span>`;
-    } else {
-        statusEl.innerHTML = `<span style="color: #666;">📝 写下你想对对方说的话...</span>`;
-    }
-}
-
-/**
- * 发送信件
- */
-sendLetter() {
-    const textarea = document.getElementById('letterContentTextarea');
-    if (!textarea) return;
-    
-    const content = textarea.value.trim();
-    if (!content) {
-        this.showNotification('请先写一些内容');
-        return;
-    }
-    
-    // 检查是否已经有待回复的信件
-    if (this.appData.letterReplyScheduled) {
-        const remaining = this.appData.letterReplyScheduled - Date.now();
-        if (remaining > 0) {
-            const minutes = Math.ceil(remaining / 60000);
-            this.showNotification(`对方还在准备回复上一封信，预计${minutes}分钟后回复`);
-            return;
-        }
-    }
-    
-    // 保存信件内容
-    this.appData.letterContent = content;
-    this.appData.letterLastSendTime = Date.now();
-    // 保存当前写信内容到待回复记录
-// 生成这封信的唯一 ID
-const letterId = 'letter_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-this.appData.pendingLetterId = letterId;
-this.appData.pendingLetterContent = content;
-this.appData.pendingLetterMap = this.appData.pendingLetterMap || {};
-this.appData.pendingLetterMap[letterId] = content;
-    
-    // 生成随机回复时间（4小时内，即240分钟内的随机时间）
-    // 最快2分钟，最慢240分钟
-    const minMinutes = 2;
-    const maxMinutes = 240;
-    const randomMinutes = minMinutes + Math.floor(Math.random() * (maxMinutes - minMinutes + 1));
-    const replyDelay = randomMinutes * 60 * 1000; // 转换为毫秒
-    
-    // 设置定时回复
-    this.appData.letterReplyScheduled = Date.now() + replyDelay;
-    this.scheduleLetterReply(replyDelay);
-    
-    // 清空文本框
-    textarea.value = '';
-    
-    // 更新UI
-    this.updateLetterCharCount();
-    this.updateLetterStatus();
-    
-    // 在聊天中显示写信消息
-    const letterMessage = {
-        id: this.dataManager.generateMessageId(),
-        text: `✉️ 写了一封信给对方`,
-        sender: 'self',
-        time: this.getCurrentTime(),
-        read: false,
-        type: 'letter_send'
-    };
-    this.appData.messages.push(letterMessage);
-    this.renderMessages();
-    
-    // 保存数据
-    this.saveAllData();
-    
-    const hours = Math.floor(randomMinutes / 60);
-    const mins = randomMinutes % 60;
-    let timeStr = '';
-    if (hours > 0) {
-        timeStr = `${hours}小时${mins}分钟`;
-    } else {
-        timeStr = `${mins}分钟`;
-    }
-    this.showNotification(`信件已发送！对方将在${timeStr}左右回复`);
-}
-
-/**
- * 安排信件回复定时器
- */
-scheduleLetterReply(delay) {
-    // 清除旧定时器
-    if (this.appData.letterReplyTimer) {
-        clearTimeout(this.appData.letterReplyTimer);
-    }
-    
-    this.appData.letterReplyTimer = setTimeout(() => {
-        this.triggerLetterReply();
-    }, delay);
-}
-
-/**
- * 触发信件回复
- */
-triggerLetterReply() {
-    // 获取普通字卡
-    const phrases = this.appData.responsePhrases || [];
-    if (phrases.length === 0) {
-        this.showNotification('请先在回复词条中添加一些字卡');
-        this.appData.letterReplyScheduled = null;
-        this.updateLetterStatus();
-        this.saveAllData();
-        return;
-    }
-    
-    // 随机抽取字卡，最少15个，如果字卡总数不足15则全部使用
-    const minCount = Math.min(15, phrases.length);
-    const maxCount = phrases.length;
-    const actualCount = minCount + Math.floor(Math.random() * (maxCount - minCount + 1));
-    
-    // 随机抽取不重复的字卡
-    const shuffled = [...phrases].sort(() => Math.random() - 0.5);
-    const selectedPhrases = shuffled.slice(0, Math.min(actualCount, shuffled.length));
-    
-    // 用句号连接
-    const replyText = selectedPhrases.join('。') + '。';
-    
-    // 清除定时器状态
-    this.appData.letterReplyScheduled = null;
-    if (this.appData.letterReplyTimer) {
-        clearTimeout(this.appData.letterReplyTimer);
-        this.appData.letterReplyTimer = null;
-    }
-    
-    // 显示"对方正在输入"
-    this.appData.isTyping = true;
-    this.renderMessages();
-    
-    // 随机延迟后显示回复
-    const typingDelay = 2000 + Math.random() * 3000; // 2-5秒输入时间
-    
-    setTimeout(() => {
-        this.appData.isTyping = false;
-        
-        // 在聊天中显示回信消息
-        const replyMessage = {
-    id: this.dataManager.generateMessageId(),
-    text: `📨 对方回信：\n${replyText}`,
-    sender: 'other',
-    time: this.getCurrentTime(),
-    read: true,
-    type: 'letter_reply'
-};
-this.appData.messages.push(replyMessage);
-this.renderMessages();
-
-// 保存回信到收信箱（关联写信内容）
-// 获取当前待回复的信件内容（根据 pendingLetterId）
-let originalLetterContent = '';
-if (this.appData.pendingLetterId && this.appData.pendingLetterMap) {
-    originalLetterContent = this.appData.pendingLetterMap[this.appData.pendingLetterId] || '';
-}
-
-const replyRecord = {
-    id: Date.now(),
-    time: new Date().toLocaleString(),
-    fullTime: new Date().toISOString(),
-    content: replyText,
-    cardCount: selectedPhrases.length,
-    myLetter: originalLetterContent,  // 关联写的信
-    letterId: this.appData.pendingLetterId  // 记录是哪一封信的回信
-};
-
-// 保存完回信后，可以清理掉这个 letterId 对应的 pending 内容（可选）
-if (this.appData.pendingLetterMap) {
-    delete this.appData.pendingLetterMap[this.appData.pendingLetterId];
-}
-this.appData.pendingLetterId = null;
-if (!this.appData.letterReplies) this.appData.letterReplies = [];
-this.appData.letterReplies.unshift(replyRecord);
-if (this.appData.letterReplies.length > 20) {
-    this.appData.letterReplies = this.appData.letterReplies.slice(0, 20);
-}
-        
-        // 更新状态
-        this.updateLetterStatus();
-        
-        // 保存数据
-        this.saveAllData();
-        
-        this.showNotification(`收到对方回信！包含${selectedPhrases.length}个字卡`);
-    }, typingDelay);
-}
-
-/**
- * 清空信件内容
- */
-clearLetter() {
-    if (this.appData.letterReplyScheduled) {
-        if (!confirm('有一封待回复的信件，确定要取消吗？')) return;
-        
-        // 取消定时器
-        if (this.appData.letterReplyTimer) {
-            clearTimeout(this.appData.letterReplyTimer);
-            this.appData.letterReplyTimer = null;
-        }
-        this.appData.letterReplyScheduled = null;
-    }
-    
-    this.appData.letterContent = '';
-    const textarea = document.getElementById('letterContentTextarea');
-    if (textarea) {
-        textarea.value = '';
-    }
-    
-    this.updateLetterCharCount();
-    this.updateLetterStatus();
-    this.saveAllData();
-    this.showNotification('已清空信件');
-}
-/**
- * 渲染收信箱列表
- */
-renderInboxList() {
-    const inboxList = document.getElementById('letterInboxList');
-    if (!inboxList) return;
-    
-    const replies = this.appData.letterReplies || [];
-    const inboxCount = document.getElementById('inboxCount');
-    if (inboxCount) {
-        inboxCount.textContent = `${replies.length}条回信`;
-    }
-    
-    if (replies.length === 0) {
-        inboxList.innerHTML = `
-            <div style="text-align:center; padding:30px 20px; color:#888;">
-                <i class="material-icons" style="font-size:2.5rem; display:block; margin-bottom:10px;">mail_outline</i>
-                <span>收信箱为空</span>
-                <p style="font-size:0.8rem; margin-top:8px;">发送信件后，对方的回信会显示在这里</p>
-            </div>
-        `;
-        return;
-    }
-    
-    inboxList.innerHTML = '';
-    replies.forEach((reply, index) => {
-        const replyCard = document.createElement('div');
-        replyCard.style.cssText = `
-            background: rgba(255,255,255,0.7);
-            border-radius: 12px;
-            padding: 14px;
-            margin-bottom: 10px;
-            border-left: 3px solid #8a7f8d;
-            cursor: pointer;
-            transition: all 0.2s;
-        `;
-        replyCard.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                <span style="font-size:0.8rem; color:#8a7f8d; font-weight:500;">📨 回信 #${replies.length - index}</span>
-                <span style="font-size:0.7rem; color:#999;">${reply.time}</span>
-            </div>
-            <div style="font-size:0.8rem; color:#666; line-height:1.5; max-height:60px; overflow:hidden; text-overflow:ellipsis;">
-                ${reply.content.length > 80 ? reply.content.substring(0, 80) + '...' : reply.content}
-            </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-                <span style="font-size:0.7rem; color:#999;">包含 ${reply.cardCount} 个字卡</span>
-                <div>
-                    <button class="letter-view-btn" data-index="${index}" style="padding:4px 12px; border:none; border-radius:12px; background:#8a7f8d; color:white; font-size:0.7rem; cursor:pointer; margin-right:4px;">查看</button>
-                    <button class="letter-delete-btn" data-index="${index}" style="padding:4px 8px; border:none; border-radius:12px; background:#e0e0e0; color:#666; font-size:0.7rem; cursor:pointer;">×</button>
-                </div>
-            </div>
-        `;
-        
-        replyCard.addEventListener('mouseenter', () => {
-            replyCard.style.background = 'rgba(138,127,141,0.1)';
-        });
-        replyCard.addEventListener('mouseleave', () => {
-            replyCard.style.background = 'rgba(255,255,255,0.7)';
-        });
-        
-        inboxList.appendChild(replyCard);
-    });
-    
-    inboxList.querySelectorAll('.letter-view-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const index = parseInt(btn.dataset.index);
-            this.openReplyDetail(replies[index]);
-        });
-    });
-    
-    inboxList.querySelectorAll('.letter-delete-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const index = parseInt(btn.dataset.index);
-            this.deleteReplyRecord(index);
-        });
-    });
-}
-
-/**
- * 打开回信详情弹窗
- */
-openReplyDetail(reply) {
-    // 创建背景遮罩层
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.7);
-        backdrop-filter: blur(4px);
-        z-index: 3000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    `;
-    
-    // 创建弹窗主体 - 更大的尺寸，专门为长文本优化
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-        background: rgba(255,255,255,0.98);
-        backdrop-filter: blur(12px);
-        border-radius: 24px;
-        padding: 20px;
-        width: 90%;
-        max-width: 800px;
-        height: 85vh;
-        max-height: 85vh;
-        display: flex;
-        flex-direction: column;
-        box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    `;
-    
-    // 处理长文本的安全转义和换行
-    const escapeHtml = (str) => {
-        if (!str) return '';
-        return str
-            .replace(/[&<>]/g, function(m) {
-                if (m === '&') return '&amp;';
-                if (m === '<') return '&lt;';
-                if (m === '>') return '&gt;';
-                return m;
-            })
-            .replace(/\n/g, '<br>');
-    };
-    
-    const myLetterContent = reply.myLetter ? escapeHtml(reply.myLetter) : '<span style="color:#bbb; font-style:italic;">（未记录原信内容）</span>';
-    const replyContent = reply.content ? escapeHtml(reply.content) : '';
-    
-    // 计算字数统计
-    const myLetterLength = (reply.myLetter || '').length;
-    const replyLength = (reply.content || '').length;
-    const myLetterChars = myLetterLength > 0 ? `${myLetterLength}字` : '';
-    const replyChars = replyLength > 0 ? `${replyLength}字` : '';
-    
-    // 构建弹窗HTML - 上下两个独立滚动区域
-    modal.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(138,127,141,0.2); padding-bottom: 12px; margin-bottom: 16px; flex-shrink: 0;">
-            <h3 style="margin:0; color:#8a7f8d; font-weight:500; font-size:1.2rem; display: flex; align-items: center; gap: 8px;">
-                📬 信件详情
-                <span style="font-size:0.7rem; background:rgba(138,127,141,0.15); padding:4px 10px; border-radius:20px; font-weight:normal;">
-                    ${reply.time}
-                </span>
-            </h3>
-            <button id="closeReplyDetail" style="width:32px; height:32px; border-radius:50%; border:none; background:rgba(0,0,0,0.05); color:#666; font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center;">✕</button>
-        </div>
-        
-        <!-- 我写的信区域 - 独立滚动 -->
-        <div style="margin-bottom: 16px; background: rgba(138,127,141,0.05); border-radius: 16px; overflow: hidden; flex: 1; min-height: 0; display: flex; flex-direction: column;">
-            <div style="display: flex; align-items: center; gap: 6px; padding: 12px 16px 8px 16px; border-bottom: 1px solid rgba(138,127,141,0.15); flex-shrink: 0;">
-                <span style="font-size:1rem;">✍️</span>
-                <span style="font-size:0.85rem; font-weight:600; color:#8a7f8d;">我写的信</span>
-                ${myLetterChars ? `<span style="font-size:0.7rem; color:#aaa; margin-left:auto;">${myLetterChars}</span>` : ''}
-            </div>
-            <div style="flex: 1; overflow-y: auto; padding: 16px; line-height: 1.7; font-size: 0.9rem; color: #3a3a3a; background: rgba(255,255,245,0.6); white-space: pre-wrap; word-wrap: break-word;">
-                ${myLetterContent}
-            </div>
-        </div>
-        
-        <!-- 对方的回信区域 - 独立滚动 -->
-        <div style="background: rgba(138,127,141,0.05); border-radius: 16px; overflow: hidden; flex: 1; min-height: 0; display: flex; flex-direction: column;">
-            <div style="display: flex; align-items: center; gap: 6px; padding: 12px 16px 8px 16px; border-bottom: 1px solid rgba(138,127,141,0.15); flex-shrink: 0;">
-                <span style="font-size:1rem;">📨</span>
-                <span style="font-size:0.85rem; font-weight:600; color:#8a7f8d;">对方的回信</span>
-                <span style="font-size:0.7rem; color:#aaa; margin-left:auto;">${reply.cardCount || 0} 个字卡 · ${replyChars || ''}</span>
-            </div>
-            <div style="flex: 1; overflow-y: auto; padding: 16px; line-height: 1.8; font-size: 0.9rem; color: #2c2c2c; background: rgba(138,127,141,0.04); white-space: pre-wrap; word-wrap: break-word; border-left: 3px solid #b3a6b5;">
-                ${replyContent || '<span style="color:#bbb;">（回信内容为空）</span>'}
-            </div>
-        </div>
-    `;
-    
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-    
-    // 关闭弹窗
-    const closeBtn = modal.querySelector('#closeReplyDetail');
-    if (closeBtn) {
-        closeBtn.addEventListener('click', () => overlay.remove());
-    }
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) overlay.remove();
-    });
-}
-
-/**
- * 删除回信记录
- */
-deleteReplyRecord(index) {
-    if (!this.appData.letterReplies) return;
-    this.appData.letterReplies.splice(index, 1);
-    this.renderInboxList();
-    this.saveAllData();
-    this.showNotification('回信记录已删除');
-}
     restartPokeScheduler() {
         if (this.appData.pokeTimer) {
             clearInterval(this.appData.pokeTimer);
@@ -10421,4 +9795,4 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 
-</div></body></html>
+</body></html>
